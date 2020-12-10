@@ -5,6 +5,7 @@ import Data.Aeson
 import qualified Data.Text as T
 import Control.Monad
 
+-- Instances for correctly convert block to json
 instance ToJSON Block where
  toJSON Block {index=i, transactions=ts, timestamp=t, previousHash=ph, nonce=n} =
     object [ "index"        .= i
