@@ -29,13 +29,15 @@ library
   exposed-modules:
       Lib
       Blocks
+      JsonFunc
+      BlockChain
   other-modules:
       Paths_upwork_exs
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
-      ,  bytestring, cryptohash-sha256
+      ,  bytestring, cryptohash-sha256, aeson, text, time
   default-language: Haskell2010
 
 executable upwork-exs-exe
