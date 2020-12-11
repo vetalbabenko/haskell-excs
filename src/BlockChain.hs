@@ -11,6 +11,7 @@ import Crypto.Hash.SHA256
 import JsonFunc
 import System.IO.Unsafe
 import Data.Time.Clock.POSIX
+import Data.List
 
 data BlockChain = BlockChain { unconfirmedTransactions:: [Block], chain :: [Block], genesisBlock :: Block, difficulty :: Int}
 
@@ -21,9 +22,10 @@ proofOfWork block difficulty = proofOfWorkRec block difficulty (computeHash bloc
 --Actual calculation of hash, until it satisfy condition
 proofOfWorkRec:: Block -> Int -> String -> String
 proofOfWorkRec block@Block {index = i, transactions = ts, timestamp = t, previousHash = pH, nonce = n} difficulty hash =
-                            let prefix = replicate difficulty n
+                            let prefix = intercalate  "" (replicate difficulty (show n))
+                                updatedBlock = Block {index = i, transactions = ts, timestamp = t, previousHash = pH, nonce = succ n}
                             in if(L.isPrefixOf prefix hash) then hash
-                                                          else proofOfWorkRec block difficulty (computeHash block)
+                                                          else proofOfWorkRec block difficulty (computeHash updatedBlock)
 
 --Computation of block hash
 computeHash :: Block -> String
@@ -31,7 +33,7 @@ computeHash block = unpack $ toLazyByteString $ byteStringHex $ hash $ pack $ un
 
 --Creation of genesis block
 genesis :: Block
-genesis = Block {index = 0, transactions = [], timestamp = currTime, previousHash = "0", nonce = '0'}
+genesis = Block {index = 0, transactions = [], timestamp = currTime, previousHash = "0", nonce = 0}
 
 --Help function of retrieving current time
 currTime :: Int
@@ -41,11 +43,11 @@ currTime = round (unsafePerformIO getPOSIXTime) :: Int
 lastBlock :: BlockChain ->  Block
 lastBlock bChain = head $ chain bChain
 
---Check if new block is valid: 
+--Check if new block is valid:
 --  1) prevhash should match hash of previous block
 --  2) hash of block should match of computed hash of this block
 isValidProof :: Block -> String -> Int -> Bool
-isValidProof block hash difficulty = if (L.isPrefixOf (replicate difficulty (nonce block)) hash && hash == computeHash block) then True
+isValidProof block hash difficulty = if (L.isPrefixOf (intercalate  "" (replicate difficulty (show (nonce block)))) hash && hash == computeHash block) then True
                                     else False
 
 -- Adding no block to blockchain if it pass proof of work validation.
