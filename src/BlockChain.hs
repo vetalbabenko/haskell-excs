@@ -12,8 +12,16 @@ import JsonFunc
 import System.IO.Unsafe
 import Data.Time.Clock.POSIX
 import Data.List
+import Debug.Trace
 
-data BlockChain = BlockChain { unconfirmedTransactions:: [Block], chain :: [Block], genesisBlock :: Block, difficulty :: Int}
+data BlockChain = BlockChain { unconfirmedTransactions:: [String], chain :: [Block], difficulty :: Int}
+
+initialBlockChain :: BlockChain
+initialBlockChain = BlockChain {
+          unconfirmedTransactions = [],
+          chain = [genesis],
+          difficulty = 1
+          }
 
 -- Calculate hash of new block until it satisfy condition (start with several repeated chararcter)
 proofOfWork :: Block -> Int -> String
@@ -23,9 +31,9 @@ proofOfWork block difficulty = proofOfWorkRec block difficulty (computeHash bloc
 proofOfWorkRec:: Block -> Int -> String -> String
 proofOfWorkRec block@Block {index = i, transactions = ts, timestamp = t, previousHash = pH, nonce = n} difficulty hash =
                             let prefix = intercalate  "" (replicate difficulty (show n))
-                                updatedBlock = Block {index = i, transactions = ts, timestamp = t, previousHash = pH, nonce = succ n}
+                                updatedBlock = Block {index = succ i, transactions = ts, timestamp = t, previousHash = pH, nonce = n} 
                             in if(L.isPrefixOf prefix hash) then hash
-                                                          else proofOfWorkRec block difficulty (computeHash updatedBlock)
+                                                          else proofOfWorkRec updatedBlock difficulty (computeHash updatedBlock)
 
 --Computation of block hash
 computeHash :: Block -> String
@@ -43,32 +51,23 @@ currTime = round (unsafePerformIO getPOSIXTime) :: Int
 lastBlock :: BlockChain ->  Block
 lastBlock bChain = head $ chain bChain
 
---Check if new block is valid:
---  1) prevhash should match hash of previous block
---  2) hash of block should match of computed hash of this block
-isValidProof :: Block -> String -> Int -> Bool
-isValidProof block hash difficulty = if (L.isPrefixOf (intercalate  "" (replicate difficulty (show (nonce block)))) hash && hash == computeHash block) then True
-                                    else False
-
 -- Adding no block to blockchain if it pass proof of work validation.
 addNewBlock :: BlockChain -> Block -> String -> BlockChain
 addNewBlock bChain block hash =
       let last = lastBlock bChain
           isPrevHashCorrect = computeHash last == previousHash block
-          isValProof = isValidProof block hash (difficulty bChain)
-      in if(isPrevHashCorrect && isValProof) then BlockChain {
+      in if(isPrevHashCorrect) then BlockChain {
           unconfirmedTransactions = [],
           chain = block : (chain bChain),
-          genesisBlock = genesisBlock bChain,
           difficulty = difficulty bChain
           }
        else bChain
 
 
 --If there are unconfirmed transaction, then it creates new block and try to brut force hash to this block.
-mine :: BlockChain -> BlockChain
-mine bChain@BlockChain {unconfirmedTransactions = uTs, chain = chain, genesisBlock = gB, difficulty = d} =
-    if (length uTs == 0) then bChain
+mine :: BlockChain -> (Maybe String, BlockChain)
+mine bChain@BlockChain {unconfirmedTransactions = uTs, chain = chain, difficulty = d} =
+    if (length uTs == 0) then (Nothing, bChain)
                          else let lastBlock = head chain
                                   block = Block {
                                           index = index lastBlock,
@@ -78,4 +77,12 @@ mine bChain@BlockChain {unconfirmedTransactions = uTs, chain = chain, genesisBlo
                                           nonce = nonce lastBlock
                                   }
                                   proof = proofOfWork block d
-                                  in addNewBlock bChain block proof
+                                  in (Just proof, addNewBlock bChain block proof)
+
+addNewTransaction :: String -> BlockChain -> BlockChain
+addNewTransaction ts bChain@BlockChain {unconfirmedTransactions = uTs, chain = chain, difficulty = d} =
+     BlockChain {
+               unconfirmedTransactions = ts : uTs ,
+               chain = chain,
+               difficulty = d
+               }
