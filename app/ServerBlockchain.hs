@@ -21,9 +21,11 @@ minedBlock _ = "No unconfirmed transaction, nothing to mined"
 runBlockChain :: IO ()
 runBlockChain = do
                    ref <- newIORef (B.initialBlockChain)
+                   C.putStrLn "Welcome to the Blockchain! What would you like to do today?"
+                   C.putStrLn "Add New Block, Request to Mine, Resync Blockchain"
                    scotty 3000 $ do
                    -- Define endpoints, to interact with blockchain
-                   
+
                    -- Return all blocks in chain
                       get "/chain" $
                           do
@@ -31,8 +33,8 @@ runBlockChain = do
                           bChain <- liftIO $ readIORef ref
                           let chain = B.chain bChain
                           html $ mconcat [T.pack (L.intercalate ", " (Prelude.map show chain) ++ "\n") ]
-                   
-                   -- Start mining block 
+
+                   -- Start mining block
                       get "/mine" $
                           do
                           liftIO $ C.putStrLn "Calling GET mine endpoint"
@@ -42,8 +44,17 @@ runBlockChain = do
                               chain = snd tuple
                           liftIO $ writeIORef ref chain
                           html $ mconcat [T.pack (minedBlock minedHash ++ "\n") ]
-                          
-                   -- Add new unconfirmed transaction in block 
+
+                   -- Start resync of blockchain
+                      get "/resync" $
+                          do
+                          liftIO $ C.putStrLn "Calling GET resync endpoint"
+                          bChain <- liftIO $ readIORef ref
+                          let newChain = B.resync bChain
+                          liftIO $ writeIORef ref newChain
+                          html $ mconcat ["Blockchain resync finished successfully \n"]
+
+                   -- Add new unconfirmed transaction in block
                       post "/add_transaction" $
                           do
                           liftIO $ C.putStrLn "Calling POST add_transaction endpoint"
@@ -52,7 +63,7 @@ runBlockChain = do
                           let newChain = B.addNewTransaction (C.unpack b) bChain
                           liftIO $ writeIORef ref newChain
                           html $ mconcat [T.pack "\n" ]
-                          
+
                    -- Return all unconfirmed transactions in block
                       get "/unconfirmed_transaction" $
                           do

@@ -11,7 +11,6 @@ import Crypto.Hash.SHA256
 import JsonFunc
 import System.IO.Unsafe
 import Data.Time.Clock.POSIX
-import Data.List
 import Debug.Trace
 
 data BlockChain = BlockChain { unconfirmedTransactions:: [String], chain :: [Block], difficulty :: Int}
@@ -30,7 +29,7 @@ proofOfWork block difficulty = proofOfWorkRec block difficulty (computeHash bloc
 --Actual calculation of hash, until it satisfy condition
 proofOfWorkRec:: Block -> Int -> String -> String
 proofOfWorkRec block@Block {index = i, transactions = ts, timestamp = t, previousHash = pH, nonce = n} difficulty hash =
-                            let prefix = intercalate  "" (replicate difficulty (show n))
+                            let prefix = L.intercalate  "" (replicate difficulty (show n))
                                 updatedBlock = Block {index = succ i, transactions = ts, timestamp = t, previousHash = pH, nonce = n} 
                             in if(L.isPrefixOf prefix hash) then hash
                                                           else proofOfWorkRec updatedBlock difficulty (computeHash updatedBlock)
@@ -48,8 +47,14 @@ currTime :: Int
 currTime = round (unsafePerformIO getPOSIXTime) :: Int
 
 --Help function of to retrieve last block
-lastBlock :: BlockChain ->  Block
+lastBlock :: BlockChain -> Block
 lastBlock bChain = head $ chain bChain
+
+resync :: BlockChain -> BlockChain
+resync BlockChain {unconfirmedTransactions = uTs, chain = c, difficulty = d} =
+                                let newChain = BlockChain {unconfirmedTransactions = uTs, chain = [last c], difficulty = d}
+                                    resyncedChain = foldr (\b acc -> addNewBlock newChain b (proofOfWork b d)) newChain (L.init c)   
+                                in BlockChain {unconfirmedTransactions = uTs, chain = chain resyncedChain, difficulty = d} 
 
 -- Adding no block to blockchain if it pass proof of work validation.
 addNewBlock :: BlockChain -> Block -> String -> BlockChain
